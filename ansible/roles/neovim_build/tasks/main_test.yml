@@ -1,0 +1,82 @@
+---
+- name: Install build prerequisites
+  apt:
+    name:
+      - git
+      - ninja-build
+      - gettext
+      - cmake
+      - unzip
+      - curl
+      - build-essential
+      - ccache
+    state: present
+    update_cache: yes
+
+- name: Check if nvim is already installed
+  command: nvim --version
+  register: nvim_version
+  ignore_errors: yes
+
+- name: Extract installed Neovim version
+  set_fact:
+    nvim_local_version: "{{ nvim_version.stdout_lines[0] | regex_search('v?(\\d+\\.\\d+\\.\\d+)', '\\1') }}"
+  when: nvim_version.rc == 0
+
+- name: Get latest Neovim release version from GitHub
+  uri:
+    url: https://api.github.com/repos/neovim/neovim/releases/latest
+    return_content: yes
+  register: github_nvim_release
+
+- name: Set latest Neovim version
+  set_fact:
+    nvim_latest_version: "{{ github_nvim_release.json.tag_name | first | regex_replace('^v', '') }}"
+
+- name: Convert local and latest versions to comparable tuples
+  set_fact:
+    nvim_local_ver_parts: "{{ nvim_local_version.split('.') | map('int') | list }}"
+    nvim_latest_ver_parts: "{{ nvim_latest_version.split('.') | map('int') | list }}"
+  when: nvim_version.rc == 0
+
+- name: Decide whether Neovim build is needed
+  set_fact:
+    build_neovim: "{{ nvim_local_ver_parts < nvim_latest_ver_parts }}"
+  when: nvim_version.rc == 0
+
+- name: Force build if Neovim is not installed
+  set_fact:
+    build_neovim: true
+  when: nvim_version.rc != 0
+
+- name: Skip build if Neovim is already up to date
+  debug:
+    msg: "Neovim is already up to date"
+  when: not build_neovim | default(false)
+
+- block:
+    - name: Clone Neovim repository stable branch (shallow)
+      git:
+        repo: https://github.com/neovim/neovim.git
+        dest: /tmp/neovim
+        version: stable
+        depth: 1
+        single_branch: true
+
+    - name: Build Neovim
+      command: make CMAKE_BUILD_TYPE=RelWithDebInfo
+      args:
+        chdir: /tmp/neovim
+
+    - name: Install Neovim
+      command: make install
+      args:
+        chdir: /tmp/neovim
+      become: yes
+
+    - name: Clean Neovim build directory
+      file:
+        path: /tmp/neovim
+        state: absent
+  when: build_neovim | default(false)
+

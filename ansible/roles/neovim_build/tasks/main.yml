@@ -1,0 +1,51 @@
+---
+- name: Install build prerequisites
+  apt:
+    name:
+      - git
+      - ninja-build
+      - gettext
+      - cmake
+      - unzip
+      - curl
+      - build-essential
+      - ccache
+    state: present
+    update_cache: yes
+
+- name: Check if nvim is already installed
+  command: nvim --version
+  register: nvim_version
+  ignore_errors: yes
+
+- name: Skip build if Neovim is already installed
+  debug:
+    msg: "Neovim is already installed"
+  when: nvim_version.rc == 0
+
+- block:
+    - name: Clone Neovim repository stable branch (shallow)
+      git:
+        repo: https://github.com/neovim/neovim.git
+        dest: /tmp/neovim
+        version: stable
+        depth: 1
+        single_branch: true
+
+    - name: Build Neovim
+      command: make CMAKE_BUILD_TYPE=RelWithDebInfo
+      args:
+        chdir: /tmp/neovim
+
+    - name: Install Neovim
+      command: make install
+      args:
+        chdir: /tmp/neovim
+      become: yes
+
+    - name: Clean Neovim build directory
+      file:
+        path: /tmp/neovim
+        state: absent
+  when: nvim_version.rc != 0
+

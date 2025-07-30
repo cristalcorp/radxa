@@ -1,0 +1,36 @@
+---
+- name: Set default target to multi-user (console, no GUI)
+  command: systemctl set-default multi-user.target
+  become: yes
+  changed_when: false  # systemctl set-default n'est pas idempotent mais safe à rejouer
+
+- name: Disable LightDM display manager
+  systemd:
+    name: lightdm
+    enabled: no
+    state: stopped
+  become: yes
+  ignore_errors: yes
+
+- name: Enable and start NetworkManager (system-wide)
+  systemd:
+    name: NetworkManager
+    enabled: yes
+    state: started
+  become: yes
+
+#- name: Enable wpa_supplicant@wlan0 service
+#  systemd:
+#    name: wpa_supplicant@wlan0
+#    enabled: yes
+#    state: started
+#  become: yes
+
+- name: Show instructions to start XFCE manually
+  debug:
+    msg: |
+      XFCE is now disabled at boot.
+      To start XFCE from console, log in and run:
+      startx
+      (or: systemctl start lightdm)
+

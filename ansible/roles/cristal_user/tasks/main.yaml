@@ -1,0 +1,9 @@
+---
+- name: Ensure user 'cristal' exists with password
+  ansible.builtin.user:
+    name: cristal
+    shell: /usr/bin/zsh
+    groups: sudo
+    password: "{{ 'changeme' | password_hash('sha512') }}"
+    create_home: true
+    state: present

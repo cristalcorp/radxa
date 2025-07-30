@@ -1,0 +1,11 @@
+---
+- name: Full Radxa setup
+  hosts: all
+  become: true
+
+  roles:
+    - common
+    - cristal_user
+    - console_mode
+ #   - neovim_build
+

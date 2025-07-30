@@ -1,0 +1,12 @@
+# roles/common/tasks/main.yml
+
+- name: Install base packages
+  apt:
+    name:
+      - zsh
+      - vim
+      - curl
+      - htop
+    state: present
+    update_cache: yes
+
